@@ -101,8 +101,6 @@ Definition cutS := SPEC("l", "n") reserving 1 (* cuts a list into 2 lists *)
            * [| wordToNat (V "n") <> 0 |]
   POST[R] Ex l1, Ex l2, sll l1 (V "l") * sll l2 R
            * [| l1 ++ l2 = l |] * [| length l1 = wordToNat (V "n") |].
-  (* The goodSize predicate means the (natural) number is no greater than UINT_MAX.
-     So, the 32-bit counter (will be the return value) won't overflow. *)
 
 Definition cutHalfS := SPEC("l") reserving 10 (* cuts in half *)
   Al l,
@@ -421,7 +419,7 @@ Ltac finish :=
     | _ => autorewrite with list; assumption
   end.
 
-Theorem ok : moduleOk listM.
+Theorem listM_correct : moduleOk listM.
   vcgen; try enterFunction; post; try splitter; try solve [sep hints; repeat finish].
   (* - vcgen generates mathematical proof obligations from the (annoted-)code above.
      - The other names are automation scripts. Some of them are defined right above,
