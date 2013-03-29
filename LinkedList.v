@@ -2,6 +2,7 @@ Require Import AutoSep.
 
 (* ============================================================================
  * singly linked list : data structure definition
+ * -- Bedrock way of defining data structure
  * ========================================================================= *)
 
 Module Type SINGLY_LINKED_LIST.
@@ -69,17 +70,25 @@ Defined.
 
 (* ============================================================================
  * specification
+ * -- we trust up to this section
  * ========================================================================= *)
 Require Import Arith.Div2.
 
-Definition div2S := SPEC("n") reserving 1 (* division operator (emulated) *)
+(* division-by-2 for machine words *)
+Definition div2S := SPEC("n") reserving 1 
   PRE[V]  Emp
   POST[R] [| R = div2 (wordToNat (V "n")) |].
+  (* The "div2" functional is for (ideal) natural numbers. In the definition here,
+     we translate the machine word n to a natural number, divide it, and
+     translate back to a machine word (the last translation is implicit).
+     R stands for the return value. *)
 
 Definition lengthS := SPEC("l") reserving 1
   Al l,
   PRE[V]  sll l (V "l") * [| goodSize (length l) |]
   POST[R] sll l (V "l") * [| R = length l |].
+  (* The goodSize predicate means the (natural) number is no greater than UINT_MAX.
+     So, the 32-bit counter (will be the return value) won't overflow. *)
 
 Definition reverseS : spec := SPEC("x") reserving 3
   Al ls,
@@ -92,12 +101,19 @@ Definition cutS := SPEC("l", "n") reserving 1 (* cuts a list into 2 lists *)
            * [| wordToNat (V "n") <> 0 |]
   POST[R] Ex l1, Ex l2, sll l1 (V "l") * sll l2 R
            * [| l1 ++ l2 = l |] * [| length l1 = wordToNat (V "n") |].
+  (* The goodSize predicate means the (natural) number is no greater than UINT_MAX.
+     So, the 32-bit counter (will be the return value) won't overflow. *)
 
 Definition cutHalfS := SPEC("l") reserving 10 (* cuts in half *)
   Al l,
   PRE[V]  sll l (V "l") * [| l <> nil |] * [| goodSize (length l + 1) |]
   POST[R] Ex l1, Ex l2, sll l1 (V "l") * sll l2 R
            * [| l1 ++ l2 = l |] * [| length l2 = div2 (length l) |].
+  (* We enforce some precondition that is the input list is not empty, and
+     the length won't be too great so that the length function and the
+     computation of ceiling won't overflow.
+     -- Here, we define the half as the length of the first part is
+        ``ceiling (length l / 2)'' *)
 
 Fixpoint merge (l1 l2 : list W) :=
   match l1, l2 with
@@ -110,6 +126,7 @@ Definition mergeS : spec := SPEC("x", "y") reserving 2
   Al lx, Al ly,
   PRE[V]  sll lx (V "x") * sll ly (V "y") * [| (length lx >= length ly)%nat |]
   POST[_] sll (merge lx ly) (V "x").
+  (* for convenience, we enforce the first list is not shorter than the second. *)
 
 Definition transformS := SPEC("l") reserving 20
   Al l,
@@ -120,10 +137,13 @@ Definition transformS := SPEC("l") reserving 20
 
 (* ============================================================================
  * implementation
+ * -- not trusted, will be verified against the specification above
  * ========================================================================= *)
 
 Definition listM := bmodule "list" {{
   bfunction "div2"("n", "i") [div2S]
+    (* emulate division-by-2 with repeated subtraction
+       -- Bedrock lacks division operator, just yet *)
     "i" <- 0;;
     [ Al n,
       PRE[V]  [| (wordToNat (V "i") * 2 + wordToNat (V "n"))%nat = n |]
@@ -131,7 +151,7 @@ Definition listM := bmodule "list" {{
       POST[R] [| R = div2 n |] ]
     While ("n" >= 2) {
       "i" <- "i" + 1;;
-      "n" <- "n" - 2
+      "n" <- "n" - 2  
     };;
     Return "i"
   end
@@ -171,6 +191,7 @@ Definition listM := bmodule "list" {{
       POST[R]  Ex l1, Ex l2, sll l1 (V "l") * sll l2 R
                 * [| l1 ++ l2 = l |] * [| length l2 = div2 (length l) |] ];;
 
+    (* ceiling (n / 2) is achieved by computing ((n + 1) / 2) *)
     "n" <- "n" + 1;;
     "n" <-- Call "list"!"div2"( "n" )
     [ Al l,
@@ -365,6 +386,8 @@ Hint Resolve transform_lem1.
 
 (* ============================================================================
  * Proof
+ * -- Hint and Ltac are the automation facility of the underling tool, Coq.
+ * -- The correctness theorem is at the bottom.
  * ========================================================================= *)
 
 Hint Rewrite app_nil_r : sepFormula.
@@ -400,7 +423,15 @@ Ltac finish :=
 
 Theorem ok : moduleOk listM.
   vcgen; try enterFunction; post; try splitter; try solve [sep hints; repeat finish].
+  (* - vcgen generates mathematical proof obligations from the (annoted-)code above.
+     - The other names are automation scripts. Some of them are defined right above,
+       and some are provided by the Bedrock library.
+     - proofs are hightly automated using Bedrock automation and the simple scripts above *)
 
+  (* Here we have 2 left-over subgoals, where my automation failed above.
+     This could be resolved by adding some more annotations in the code, and
+     make my automation more sophisticated. For now, I just manually
+     guided the automation towards the right direction below. *)
   Focus.
   evaluate hints.
   exists x9, x6.
