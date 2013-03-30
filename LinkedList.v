@@ -110,8 +110,8 @@ Definition cutHalfS := SPEC("l") reserving 10 (* cuts in half *)
   (* We enforce some precondition that is the input list is not empty, and
      the length won't be too great so that the length function and the
      computation of ceiling won't overflow.
-     -- Here, we define the half as the length of the first part is
-        ``ceiling (length l / 2)'' *)
+     -- Here, we define the half as the length of the second part is
+        ``length l / 2'' *)
 
 Fixpoint merge (l1 l2 : list W) :=
   match l1, l2 with
@@ -189,7 +189,9 @@ Definition listM := bmodule "list" {{
       POST[R]  Ex l1, Ex l2, sll l1 (V "l") * sll l2 R
                 * [| l1 ++ l2 = l |] * [| length l2 = div2 (length l) |] ];;
 
-    (* ceiling (n / 2) is achieved by computing ((n + 1) / 2) *)
+    (* when the length of the second part is n / 2, the length of
+       the first part is ``ceiling (n / 2)''.
+       ceiling (n / 2) is achieved by computing (n + 1) / 2 *)
     "n" <- "n" + 1;;
     "n" <-- Call "list"!"div2"( "n" )
     [ Al l,
@@ -228,7 +230,7 @@ Definition listM := bmodule "list" {{
       POST[_] sll (merge lx ly) (V "p") ]
     While ( "y" <> 0 ) {
       "tmp" <-* "p" + 4;;
-      "p" + 4 *<- "y";; (* p points to y / y cannot be null *)
+      "p" + 4 *<- "y";; (* p points to y & y cannot be null *)
       "p" <- "tmp";; (* p advances *)
 
       "tmp" <-* "y" + 4;;
@@ -421,7 +423,7 @@ Ltac finish :=
 
 Theorem listM_correct : moduleOk listM.
   vcgen; try enterFunction; post; try splitter; try solve [sep hints; repeat finish].
-  (* - vcgen generates mathematical proof obligations from the (annoted-)code above.
+  (* - vcgen generates mathematical proof obligations from the (annotated) code above.
      - The other names are automation scripts. Some of them are defined right above,
        and some are provided by the Bedrock library.
      - proofs are hightly automated using Bedrock automation and the simple scripts above *)
