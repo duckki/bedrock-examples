@@ -71,8 +71,32 @@ Defined.
 (* ============================================================================
  * specification
  * -- we trust up to this section
+ * -- PRE/POST lines specifies how the machine state (including the heap)
+ *    changes by calling the function
  * ========================================================================= *)
-Require Import Arith.Div2.
+Require Import Arith.Div2. (* for div2 from the Coq standard library *)
+
+Fixpoint merge (l1 l2 : list W) :=
+  match l1, l2 with
+    | nil, nil => nil
+    | w1 :: l1', w2 :: l2' => w1 :: w2 :: merge l1' l2'
+    | _, _ => l1 ++ l2 (* one of them is nil *)
+  end.
+
+Definition transformS := SPEC("l") reserving 20
+  Al l,
+  PRE[V]  sll l (V "l") * [| l <> nil |] * [| goodSize (length l + 1) |]
+  POST[_] Ex l1, Ex l2, sll (merge l1 (rev l2)) (V "l")
+           * [| l = l1 ++ l2 |] * [| length l2 = div2 (length l) |].
+  (* we require the input is not empty, because it leads to a simpler
+     implementation. To support the empty list, one could check the input first,
+     and just return it if it is empty. *)
+
+
+(* ============================================================================
+ * specifications for helper functions
+ * -- not trusted, just represent immediate steps
+ * ========================================================================= *)
 
 (* division-by-2 for machine words *)
 Definition div2S := SPEC("n") reserving 1 
@@ -95,7 +119,7 @@ Definition reverseS : spec := SPEC("x") reserving 3
   PRE[V]  sll ls (V "x")
   POST[R] sll (rev ls) R.
 
-Definition cutS := SPEC("l", "n") reserving 1 (* cuts a list into 2 lists *)
+Definition cutS := SPEC("l", "n") reserving 1 (* cuts the list into 2 lists *)
   Al l,
   PRE[V]  sll l (V "l") * [| (wordToNat (V "n") <= length l)%nat |]
            * [| wordToNat (V "n") <> 0 |]
@@ -113,35 +137,22 @@ Definition cutHalfS := SPEC("l") reserving 10 (* cuts in half *)
      -- Here, we define the half as the length of the second part is
         ``length l / 2'' *)
 
-Fixpoint merge (l1 l2 : list W) :=
-  match l1, l2 with
-    | nil, nil => nil
-    | w1 :: l1', w2 :: l2' => w1 :: w2 :: merge l1' l2'
-    | _, _ => l1 ++ l2 (* one of them is nil *)
-  end.
-
 Definition mergeS : spec := SPEC("x", "y") reserving 2
   Al lx, Al ly,
   PRE[V]  sll lx (V "x") * sll ly (V "y") * [| (length lx >= length ly)%nat |]
   POST[_] sll (merge lx ly) (V "x").
-  (* for convenience, we enforce the first list is not shorter than the second. *)
-
-Definition transformS := SPEC("l") reserving 20
-  Al l,
-  PRE[V]  sll l (V "l") * [| l <> nil |] * [| goodSize (length l + 1) |]
-  POST[_] Ex l1, Ex l2, sll (merge l1 (rev l2)) (V "l")
-           * [| l = l1 ++ l2 |] * [| length l2 = div2 (length l) |].
+  (* for convenience, we require the first list is not shorter than the second. *)
 
 
 (* ============================================================================
- * implementation
+ * implementation (including helper functions)
  * -- not trusted, will be verified against the specification above
  * ========================================================================= *)
 
 Definition listM := bmodule "list" {{
   bfunction "div2"("n", "i") [div2S]
     (* emulate division-by-2 with repeated subtraction
-       -- Bedrock lacks division operator, just yet *)
+       -- Bedrock lacks division/bit-wise operator, just yet *)
     "i" <- 0;;
     [ Al n,
       PRE[V]  [| (wordToNat (V "i") * 2 + wordToNat (V "n"))%nat = n |]
@@ -241,7 +252,7 @@ Definition listM := bmodule "list" {{
   end
   with
   bfunction "transform"("l", "m") [transformS]
-    "m" <-- Call "list"!"cutHalf"( "l" ) (* m is the second half *)
+    "m" <-- Call "list"!"cutHalf"( "l" ) (* m will be the second half *)
     [ Al l1, Al l2,
       PRE[V,Q] sll l1 (V "l") * sll l2 Q * [| (length l1 >= length l2)%nat |]
       POST[_]  sll (merge l1 (rev l2)) (V "l") ];;
@@ -430,7 +441,7 @@ Theorem listM_correct : moduleOk listM.
 
   (* Here we have 2 left-over subgoals, where my automation failed above.
      This could be resolved by adding some more annotations in the code, and
-     make my automation more sophisticated. For now, I just manually
+     make my automation script more sophisticated. For now, I just manually
      guided the automation towards the right direction below. *)
   Focus.
   evaluate hints.
