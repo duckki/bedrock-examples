@@ -78,18 +78,18 @@ Require Import Arith.Div2. (* for div2 from the Coq standard library *)
 
 Fixpoint merge (l1 l2 : list W) :=
   match l1, l2 with
-    | nil, nil => nil
     | w1 :: l1', w2 :: l2' => w1 :: w2 :: merge l1' l2'
-    | _, _ => l1 ++ l2 (* one of them is nil *)
+    | _, _ => l1 ++ l2 (* one of them is nil -> just append them *)
   end.
 
 Definition transformS := SPEC("l") reserving 20
   Al l,
   PRE[V]  sll l (V "l") * [| l <> nil |] * [| goodSize (length l + 1) |]
-  POST[_] Ex l1, Ex l2, sll (merge l1 (rev l2)) (V "l")
-           * [| l = l1 ++ l2 |] * [| length l2 = div2 (length l) |].
+  POST[_] Ex l1, Ex l2, [| l = l1 ++ l2 |]
+           * [| length l2 = div2 (length l) |]
+           * sll (merge l1 (rev l2)) (V "l").
   (* we require the input is not empty, because it leads to a simpler
-     implementation. To support the empty list, one could check the input first,
+     implementation. To support the empty list, one could first check the input
      and just return it if it is empty. *)
 
 
