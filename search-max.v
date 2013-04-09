@@ -2,7 +2,7 @@
  * Kaldewaij’ search by elimination
  * Bedrock implementtaion/proof by Duckki Oe (4/9/2013)
  * paper: http://link.springer.com/chapter/10.1007%2F3-540-51305-1_17#page-1
- * Defny version: http://rise4fun.com/dafny/Chqv
+ * Dafny version: http://rise4fun.com/dafny/Chqv
  * ========================================================================= *)
 Set Implicit Arguments.
 Require Import AutoSep WordLemmas.
