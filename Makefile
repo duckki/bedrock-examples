@@ -1,5 +1,5 @@
 BEDROCK := bedrock
-MODULES := WordLemmas LinkedList
+MODULES := WordLemmas
 VS      := $(MODULES:%=%.v)
 
 
