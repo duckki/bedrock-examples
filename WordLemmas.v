@@ -418,6 +418,41 @@ Hint Rewrite natToW_S_wminus_1 : N.
 
 
 (* ============================================================================
+ * goodSize lemmas
+ * ========================================================================= *)
+
+Transparent goodSize.
+
+Lemma goodSize_dec : forall x, { goodSize x } + { ~ goodSize x }.
+  intros.
+  destruct (le_lt_dec (pow2 32) x); [right | left].
+  unfold goodSize; intro; contradict l.
+  apply Lt.lt_not_le.
+  apply Nlt_out in H.
+  rewrite ! Nat2N.id in H.
+  rewrite Npow2_nat in H; auto.
+
+  unfold goodSize.
+  apply Nlt_in.
+  rewrite ! Nat2N.id.
+  rewrite Npow2_nat.
+  auto.
+Qed.
+
+Lemma not_goodSize_gt : forall x y, goodSize x -> ~ goodSize y -> (x < y)%nat.
+  intros.
+  unfold goodSize in *.
+  apply N.nlt_ge in H0.
+  assert (N.of_nat x < N.of_nat y)%N.
+  eapply N.lt_le_trans; eassumption.
+  apply Nlt_out in H1.
+  rewrite ! Nat2N.id in *; auto.
+Qed.
+
+Opaque goodSize.
+
+
+(* ============================================================================
  * word inequalities
  * ========================================================================= *)
 
@@ -429,4 +464,13 @@ Qed.
 
 Lemma wle_wle_antisym : forall n m:W, n <= m -> m <= n -> n = m.
   intros; destruct_words; f_equal; nomega.
+Qed.
+
+Lemma lt_natToW : forall n (w : W), w < natToW n -> (wordToNat w < n)%nat.
+  intros.
+  destruct (goodSize_dec n).
+  roundtrip; auto.
+  destruct_words.
+  roundtrip.
+  apply not_goodSize_gt; auto.
 Qed.
