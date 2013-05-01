@@ -70,7 +70,6 @@ Local Hint Resolve fact_ge_1.
 Lemma fact_ge : forall x, (x <= fact x)%nat.
   destruct x; simpl; auto.
   rewrite Mult.mult_comm.
-  SearchRewrite (_ * 1)%nat.
   rewrite <- Mult.mult_1_r at 1.
   apply Mult.mult_le_compat_l; auto.  
 Qed.
