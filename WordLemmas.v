@@ -1,5 +1,5 @@
-Require Import AutoSep.
 Set Implicit Arguments.
+Require Import AutoSep Arith.
 
 (* usuful and safe hints *)
 Hint Rewrite Npow2_nat : N.
@@ -160,12 +160,14 @@ Ltac destruct_words := repeat
 
 Ltac goodsize :=
   match goal with
-    | [ |- (_ < pow2 32)%nat ] => apply goodSize_danger
+    | |- (_ < pow2 32)%nat => apply goodSize_danger
     | _ => idtac
   end;
   match goal with
-    | [ H: goodSize ?n |- goodSize _ ] => solve [apply goodSize_weaken with n; eauto]
-    | _ => eauto
+    | [ H: goodSize _ |- goodSize _ ]
+      => solve [apply (goodSize_weaken _ _ H); auto; omega]
+    | |- goodSize _ => solve [auto]
+    | _ => omega
   end.
 
 
@@ -191,9 +193,160 @@ Lemma natToW_wordToNat : forall w:W, natToW (wordToNat w) = w.
 Qed.
 Hint Rewrite natToW_wordToNat : N.
 
+Lemma wordToNat_wplus' : forall sz (x y: word sz),
+                           (wordToNat x + wordToNat y < pow2 sz)%nat
+                           -> wordToNat (x ^+ y) = wordToNat x + wordToNat y.
+  intros.
+  destruct_words.
+  rewrite <- natToWord_plus.
+  rewrite roundTrip; auto.
+  pre_nomega; auto.
+  rewrite wordToNat_natToWord_idempotent in * by nomega.
+  rewrite wordToNat_natToWord_idempotent in * by nomega.
+  auto.
+Qed.
+
+Corollary wordToNat_wplus'' : forall sz (x y: nat), (x + y < pow2 sz)%nat
+                           -> wordToNat ($ x ^+ natToWord sz y) = x + y.
+  intros.
+  rewrite wordToNat_wplus' by nomega.
+  rewrite ! roundTrip; auto.
+Qed.
+
+Lemma wordToNat_wminus : forall sz (w u : word sz),
+  u <= w
+  -> wordToNat (w ^- u) = wordToNat w - wordToNat u.
+  intros.
+  eapply natToWord_inj; try eapply wordToNat_bound.
+  2: generalize (wordToNat_bound w); omega.
+  rewrite natToWord_wordToNat.
+  unfold wminus.
+  rewrite wneg_alt.
+  unfold wnegN.
+  pattern w at 1.
+  rewrite <- (natToWord_wordToNat w).
+  rewrite <- natToWord_plus.
+  specialize (wordToNat_bound u); intro.
+  destruct (le_lt_dec (wordToNat u) (wordToNat w)).
+  replace (wordToNat w + (pow2 sz - wordToNat u))
+    with (pow2 sz + (wordToNat w - wordToNat u)) by omega.
+  rewrite natToWord_plus.
+  rewrite natToWord_pow2.
+  apply wplus_unit.
+  elimtype False; apply H.
+  nomega.
+Qed.
+Corollary wordToNat_wminus'' : forall sz (x y: nat), (x < pow2 sz)%nat
+                           -> (y <= x)%nat
+                           -> wordToNat ($ x ^- natToWord sz y) = x - y.
+  intros.
+  rewrite wordToNat_wminus by nomega.
+  rewrite ! roundTrip; auto.
+Qed.
+
+Lemma mult_S : forall x y, (x <= x * S y)%nat.
+  intros; rewrite mult_comm; simpl; apply le_plus_l.
+Qed.
+Local Hint Resolve mult_S.
+
+Local Hint Resolve mult_comm.
+
+Lemma wordToNat_wmult : forall (w u : W),
+  goodSize (wordToNat w * wordToNat u)
+  -> wordToNat (w ^* u) = wordToNat w * wordToNat u.
+  intros.
+  rewrite wmult_alt; unfold wmultN, wordBinN.
+  apply wordToNat_natToWord_idempotent; auto.
+Qed.
+
+Corollary wordToNat_wmult_W : forall (x y: nat), goodSize (x * y)%nat
+                           -> wordToNat (natToW x ^* natToW y) = x * y.
+  intros.
+  unfold natToW in *.
+  destruct x, y; simpl; auto.
+  assert (wordToNat (natToWord 32 0) = 0).
+  rewrite roundTrip by goodsize; auto.
+  rewrite wordToNat_wmult.
+  unfold natToW in *; rewrite H0; omega.
+  rewrite H0; simpl; goodsize.
+
+  assert (goodSize (S x)) by goodsize.
+  assert (goodSize (S y)).
+  {
+    apply (goodSize_weaken _ _ H).
+    rewrite mult_comm; auto.
+  }
+  rewrite wordToNat_wmult.
+  rewrite ! roundTrip by goodsize; simpl; omega.  
+  rewrite ! roundTrip by goodsize; auto.
+Qed.
+
 
 (* ============================================================================
- * word equalities with operators
+ * natToWord and operators
+ * ========================================================================= *)
+
+Lemma natToWord_mult : forall sz x y, natToWord sz (x * y)
+                                      = natToWord _ x ^* natToWord _ y.
+  unfold "^*", wordBin; intros.
+  pre_nomega.
+  rewrite <- Nat2N.inj_mul.
+  rewrite NToWord_nat.
+  pre_nomega.
+
+  destruct (wordToNat_natToWord' sz x).
+  rewrite <- H at 1.
+  remember (wordToNat $ (x)) as x'.
+
+  rewrite mult_plus_distr_r.
+  rewrite natToWord_plus.
+  replace (x0 * pow2 sz * y)%nat with ((x0 * y) * pow2 sz)%nat.
+  rewrite natToWord_pow2_zero.
+  rewrite <- natToWord_plus.
+  rewrite plus_0_r.
+
+  destruct (wordToNat_natToWord' sz y).
+  rewrite <- H0 at 1.
+  remember (wordToNat $ (y)) as y'.
+  rewrite mult_plus_distr_l.
+  rewrite natToWord_plus.
+  replace (x' * (x1 * pow2 sz))%nat with ((x' * x1) * pow2 sz)%nat by apply mult_assoc_reverse.
+  rewrite natToWord_pow2_zero.
+  rewrite <- natToWord_plus; auto.
+  
+  rewrite 2 mult_assoc_reverse.
+  f_equal.
+  apply mult_comm.
+Qed.
+
+
+(* ============================================================================
+ * simplification tactic
+ * ========================================================================= *)
+
+Ltac roundtrip :=
+  pre_nomega; unfold natToW in *;
+  repeat match goal with
+           | _ => rewrite wordToNat_natToWord_idempotent_W in * by goodsize
+           | _ => rewrite wordToNat_wminus'' in * by goodsize
+           | _ => rewrite wordToNat_wminus in * by nomega
+           | _ => rewrite wordToNat_wplus'' in * by goodsize
+           | _ => rewrite wordToNat_wplus' in * by goodsize
+           | _ => rewrite wordToNat_wmult_W in * by goodsize
+           | _ => rewrite wordToNat_wmult in * by goodsize
+
+           | H: _ |- _ => rewrite <- natToW_minus in H by omega; unfold natToW in H
+           | H: _ |- _ => rewrite <- natToWord_plus in H
+           | H: _ |- _ => rewrite <- natToWord_mult in H
+           | H: natToWord ?sz _ = natToWord ?sz _ |- _
+             => apply natToWord_inj with sz _ _ in H; try goodsize
+           | H: not (natToWord ?sz _ = natToWord ?sz _) |- _
+             => apply natToWord_inj' with sz _ _ in H; try goodsize
+         end.
+
+
+(* ============================================================================
+ * word equality lemmas
  * ========================================================================= *)
 
 Definition eq_W_dec : forall x y : W, { x = y } + { x <> y }.
@@ -221,12 +374,40 @@ Lemma weqb_diff : forall w1 w2, w1 <> w2 -> weqb w1 w2 = false.
 Qed.
 Hint Rewrite weqb_diff using solve [auto; discriminate] : N.
 
-Lemma wordToNat_wplus : forall sz x y:nat, (x + y < pow2 sz)%nat ->
-                        wordToNat (natToWord sz x ^+ natToWord sz y) = x + y.
-  intros.
-  rewrite <- natToWord_plus.
-  rewrite roundTrip; auto.
+
+(* ============================================================================
+ * word operators
+ * ========================================================================= *)
+
+Lemma wplus_unit_r : forall sz w, w ^+ natToWord sz 0 = w.
+  intros; rewrite wplus_comm; rewrite wplus_unit; auto.
 Qed.
+Hint Rewrite wplus_unit wplus_unit_r : N.
+
+Lemma wminus_unit : forall sz w, w ^- natToWord sz 0 = w.
+  intros.
+  unfold "^-", "^~".
+  roundtrip.
+  rewrite N.sub_0_r.
+  rewrite NToWord_nat.
+  roundtrip.
+  rewrite natToWord_pow2.
+  autorewrite with N; auto.
+Qed.
+
+Lemma wmult_zero : forall w, natToW 0 ^* w = natToW 0.
+  auto.
+Qed.
+
+Lemma wmult_zero_r : forall w, w ^* natToW 0 = natToW 0.
+  intros; roundtrip; rewrite wmult_comm; auto.
+Qed.
+Hint Rewrite wmult_zero wmult_zero_r : N.
+
+
+(* ============================================================================
+ * natToW and operators
+ * ========================================================================= *)
 
 Lemma natToW_S_wminus_1 : forall n, $ (S n) ^- $1 = natToW n.
   unfold natToW; intros.
@@ -237,39 +418,15 @@ Hint Rewrite natToW_S_wminus_1 : N.
 
 
 (* ============================================================================
- * simplification tactic
- * ========================================================================= *)
-
-Ltac roundtrip :=
-  pre_nomega; unfold natToW in *;
-  repeat match goal with
-           | _ => rewrite wordToNat_natToWord_idempotent_W in * by goodsize
-           | _ => rewrite wordToNat_wminus in * by (goodsize; nomega)
-           | _ => rewrite wordToNat_wplus in * by (goodsize; nomega)
-
-           | H: _ |- _ => rewrite <- natToWord_plus in H by omega
-           | H: natToWord ?sz _ = natToWord ?sz _ |- _
-             => apply natToWord_inj with sz _ _ in H; goodsize
-           | H: not (natToWord ?sz _ = natToWord ?sz _) |- _
-             => apply natToWord_inj' with sz _ _ in H; goodsize
-         end.
-
-
-(* ============================================================================
  * word inequalities
  * ========================================================================= *)
 
 Lemma wle_wneq_wlt : forall i j:W, i <= j -> i <> j -> i < j.
-  intros.
-  destruct_words.
+  intros; destruct_words.
   apply wordToNat_inj' in H0.
-  autorewrite with N in *.
-  nomega.
+  autorewrite with N in *; nomega.
 Qed.
 
 Lemma wle_wle_antisym : forall n m:W, n <= m -> m <= n -> n = m.
-  intros.
-  destruct_words.
-  f_equal.
-  nomega.
+  intros; destruct_words; f_equal; nomega.
 Qed.

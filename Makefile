@@ -10,7 +10,7 @@ coq: Makefile.coq
 
 Makefile.coq: Makefile $(VS)
 	coq_makefile -R $(BEDROCK)/src Bedrock \
-		     -I $(BEDROCK)/platform \
+		     -I $(BEDROCK)/examples \
 		     $(VS) -o Makefile.coq
 
 clean:: Makefile.coq

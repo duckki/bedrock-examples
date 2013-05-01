@@ -143,6 +143,7 @@ Lemma maxInv_init : forall n ls, ls <> nil -> wordToNat n = length ls
   rewrite H1.
   rewrite selN_last, skipn_last by auto.
   apply List.Forall_cons; auto.
+  right; nomega.
 Qed.
 Hint Resolve maxInv_init.
 
@@ -194,7 +195,7 @@ Lemma maxInv_minus' : forall x y ls, (x < y)%nat -> (y < length ls)%nat
 
   rewrite skipn_pred by auto.
   eapply Forall_cons.
-  right; auto.
+  right; nomega.
   eapply Forall_impl, H4; simpl; intros.
   destruct H5; auto.
   left; nomega.
@@ -253,6 +254,5 @@ Ltac finish :=
   end.
 
 Theorem maxM_correct : moduleOk maxM.
-  vcgen; solve [ enterFunction
-               | post; try unstuck; sep_auto; repeat finish].
+  vcgen; post; try unstuck; sep_auto; repeat finish.
 Qed.
