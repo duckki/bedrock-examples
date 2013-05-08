@@ -5,7 +5,7 @@
 #==============================================================================
 BEDROCK=bedrock
 OPTS="-R $BEDROCK/src Bedrock -I $BEDROCK/examples"
-SRCS="myfactorial search-max LinkedList" 
+SRCS="myfactorial myfactorial-safe search-max"
 
 #==============================================================================
 # Implementation
@@ -29,6 +29,10 @@ function check {
 
 TIMEFORMAT='	%2R real	%2U user	%2S system'
 
-for FILE in $SRCS; do
- time check $FILE
-done
+if [ X$1 != 'X' ]; then
+  time check $1
+else
+  for FILE in $SRCS; do
+   time check $FILE
+  done
+fi
