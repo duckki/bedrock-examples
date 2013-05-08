@@ -369,6 +369,11 @@ Lemma weqb_refl : forall w, weqb w w = true.
 Qed.
 Hint Rewrite weqb_refl : N.
 
+Lemma weqb_refl' : forall x y, x = y -> weqb x y = true.
+  intros; subst; autorewrite with N; auto.
+Qed.
+Hint Rewrite weqb_refl' using solve [auto; words] : N.
+
 Lemma weqb_diff : forall w1 w2, w1 <> w2 -> weqb w1 w2 = false.
   intros; apply weqb_false_iff; auto.
 Qed.
