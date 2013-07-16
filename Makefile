@@ -1,5 +1,5 @@
 BEDROCK := bedrock
-MODULES := WordLemmas
+MODULES := WordLemmas SepPure
 VS      := $(MODULES:%=%.v)
 
 
@@ -10,7 +10,7 @@ coq: Makefile.coq
 
 Makefile.coq: Makefile $(VS)
 	coq_makefile -R $(BEDROCK)/src Bedrock \
-		     -I $(BEDROCK)/examples \
+		     -I $(BEDROCK)/platform \
 		     $(VS) -o Makefile.coq
 
 clean:: Makefile.coq
