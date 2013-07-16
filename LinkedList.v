@@ -279,14 +279,14 @@ Require Import WordLemmas.
 Lemma div2_lem1 : forall (i n : W), natToW 2 <= n
                                            -> goodSize (wordToNat i * 2 + wordToNat n)
                                            -> goodSize (wordToNat (i ^+ natToW 1) * 2
-                                                        + wordToNat (n ^- natToW 2)).
+                                                        + (wordToNat n - 2)).
   intros; destruct_words; roundtrip; goodsize.
 Qed.
 Hint Resolve div2_lem1.
 
 Lemma div2_lem2 : forall (i n : W), natToW 2 <= n
                       -> goodSize (wordToNat i * 2 + wordToNat n)
-                      -> wordToNat (i ^+ natToW 1) * 2 + wordToNat (n ^- natToW 2)
+                      -> wordToNat (i ^+ natToW 1) * 2 + (wordToNat n - 2)
                          = wordToNat i * 2 + wordToNat n.
   intros; destruct_words; roundtrip; omega.
 Qed.
@@ -294,7 +294,7 @@ Hint Resolve div2_lem2.
 
 Lemma div2_lem3 : forall (i n : W), n < natToW 2
                                            -> i = div2 (wordToNat i * 2 + wordToNat n).
-  intros; destruct_words; roundtrip.
+  intros; destruct_words; roundtrip; try goodsize.
   f_equal.
   rewrite Plus.plus_comm.
   destruct w0.
@@ -433,7 +433,7 @@ Ltac finish :=
   end.
 
 Theorem listM_correct : moduleOk listM.
-  vcgen; post; try splitter; try solve [sep hints; repeat finish].
+  vcgen; try enterFunction; post; try splitter; try solve [sep hints; repeat finish].
   (* - vcgen generates mathematical proof obligations from the (annotated) code above.
      - The other names are automation scripts. Some of them are defined right above,
        and some are provided by the Bedrock library.
@@ -443,20 +443,13 @@ Theorem listM_correct : moduleOk listM.
      This could be resolved by adding some more annotations in the code, and
      make my automation script more sophisticated. For now, I just manually
      guided the automation towards the right direction below. *)
-  {
-    sep hints; repeat finish.
-    auto.
-    auto.    
-  }
-  admit. (* broken: when using Bedrock/example *)
-  {
-    evaluate hints.
-    exists x9, x6.
-    solve [sep hints; repeat finish].
-  }
-  {
-    evaluate hints.
-    exists x1, x2.
-    solve [sep hints; repeat finish].
-  }
+  Focus.
+  evaluate hints.
+  exists x9, x6.
+  solve [sep hints; repeat finish].
+
+  Focus.
+  evaluate hints.
+  exists x1, x2.
+  solve [sep hints; repeat finish].
 Qed.
