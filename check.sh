@@ -4,8 +4,8 @@
 # Configurations
 #==============================================================================
 BEDROCK=bedrock
-OPTS="-R $BEDROCK/src Bedrock -I $BEDROCK/examples"
-SRCS="myfactorial myfactorial-safe search-max"
+OPTS="-R $BEDROCK/src Bedrock -I $BEDROCK/platform"
+SRCS="myfactorial myfactorial-safe search-max Schorr-Waite"
 
 #==============================================================================
 # Implementation
