@@ -1,3 +1,9 @@
+(* ============================================================================
+  The Schorr-Waite algorithm verified with Bedrock library
+  (the Bedrock library can be found at http://plv.csail.mit.edu/bedrock/)
+  Authors: Duckki Oe and Adam Chlipala
+  Date: 7/15/2013
+ * ========================================================================= *)
 Set Implicit Arguments.
 Require Import AutoSep Bags Sets SepPure.
 
